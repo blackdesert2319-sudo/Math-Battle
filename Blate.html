@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>MathBattle — Full Online</title>
+<style>
+:root{--bg:#F6F8FA;--card:#fff;--primary:#1273E6;--danger:#E03E3E;--muted:#6b7280}
+html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+.app{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}
+.stage{width:100%;max-width:980px;height:100%;box-sizing:border-box;padding:16px;display:grid;grid-template-rows:auto 1fr;gap:12px;}
+.card{background:var(--card);border-radius:12px;box-shadow:0 6px 20px rgba(20,20,40,0.06);padding:12px;box-sizing:border-box;}
+.header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+.logo{font-weight:700;color:var(--primary);font-size:18px}
+.small{font-size:13px;color:var(--muted)}
+/* Lobby */
+.lobby{display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;height:calc(100% - 60px);}
+.field{width:100%;display:flex;gap:8px;align-items:center}
+input[type="text"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9ef;font-size:16px}
+.btn{background:var(--primary);color:white;padding:10px 14px;border-radius:10px;border:none;font-weight:600;cursor:pointer}
+.btn.secondary{background:#fff;border:1px solid #e6e9ef;color:#111}
+.modes{display:flex;gap:8px;flex-wrap:wrap}
+.mode{padding:8px 12px;border-radius:8px;border:1px dashed #e6e9ef;cursor:pointer}
+.mode.selected{border-style:solid;background:#eef6ff;border-color:rgba(18,115,230,0.18)}
+/* Game */
+.game-grid{display:grid;grid-template-columns:1fr 320px;gap:12px;height:100%}
+.play-area{display:flex;flex-direction:column;gap:12px;height:100%}
+.hud{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hud-left{display:flex;gap:8px;align-items:center}
+.stat{background:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(10,10,20,0.03);font-weight:700;cursor:pointer}
+.timer{font-weight:700;color:#111}
+.question-card{flex:1;background:linear-gradient(180deg,#fff,#fbfdff);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;justify-content:center;align-items:center;text-align:center}
+.question{font-size:28px;font-weight:800}
+.answer-box{font-size:26px;padding:12px 18px;border-radius:10px;border:1px solid #eef2f7;min-width:160px;min-height:48px;display:flex;align-items:center;justify-content:center;background:white}
+.numpad{display:flex;gap:8px;justify-content:center;flex-wrap:nowrap;overflow:hidden;user-select:none}
+.numpad .key{padding:12px 14px;border-radius:8px;background:#f7f9fc;border:1px solid #e6e9ef;min-width:40px;text-align:center;font-weight:700;cursor:pointer}
+.map-card{background:#fff;padding:12px;border-radius:12px;height:100%;overflow:auto}
+.players-list{display:flex;flex-direction:column;gap:8px}
+.player-item{display:flex;justify-content:space-between;align-items:center;padding:8px;border-radius:8px;background:#fbfdff}
+.teacher-view{width:100%;height:100%;display:flex;flex-direction:column;gap:12px}
+.center{display:flex;align-items:center;justify-content:center}
+.hidden{display:none}
+.message{padding:10px;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.03);font-weight:600}
+.map-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.cell{height:40px;border-radius:6px;background:#f3f6fb;border:1px solid #e6eefc;display:flex;align-items:center;justify-content:center;font-weight:700}
+@media (max-width:900px){ .game-grid{grid-template-columns:1fr} .map-card{height:240px} .stage{padding:12px} }
+</style>
+</head>
+<body>
+<div class="app"><div class="stage">
+  <div class="header card">
+    <div style="display:flex;align-items:center;gap:12px"><div class="logo">MathBattle</div><div class="small">Online — Tự sinh câu</div></div>
+    <div class="small" id="roomInfoDisplay">Offline</div>
+  </div>
+
+  <!-- LOBBY -->
+  <div id="screenLobby" class="card lobby">
+    <div style="width:100%;max-width:560px">
+      <div style="margin-bottom:8px;font-weight:700">Nhập tên người chơi</div>
+      <div class="field">
+        <input id="playerName" type="text" placeholder="Tên của bạn" maxlength="20" />
+        <button id="createBtn" class="btn">Tạo phòng</button>
+        <button id="joinBtn" class="btn secondary">Vào phòng</button>
+      </div>
+
+      <div style="margin-top:12px;font-weight:700">Chọn chế độ (khi tạo phòng)</div>
+      <div class="modes" id="modes">
+        <div class="mode selected" data-mode="1v1">1 vs 1</div>
+        <div class="mode" data-mode="solo3">Solo 3</div>
+        <div class="mode" data-mode="solo4">Solo 4</div>
+        <div class="mode" data-mode="2v2">2 vs 2</div>
+      </div>
+
+      <div style="margin-top:12px;display:flex;gap:8px;align-items:center">
+        <div class="small">Nhập mã phòng (4 chữ số) để tham gia:</div>
+        <input id="joinCode" type="text" placeholder="####" maxlength="4" style="width:120px;padding:8px;border-radius:8px;border:1px solid #e6e9ef" />
+      </div>
+
+      <div style="margin-top:14px;color:var(--muted);font-size:13px">
+        Lưu ý: Tên trùng trong cùng phòng sẽ không được chấp nhận.
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME -->
+  <div id="screenGame" class="card hidden">
+    <div class="game-grid">
+      <div class="play-area">
+        <div class="hud">
+          <div class="hud-left">
+            <div id="scoreStat" class="stat">Điểm: 0</div>
+            <div id="bombStat" class="stat">Bom: 0</div>
+            <div id="nukeStat" class="stat">Nuke: 0</div>
+          </div>
+          <div class="timer">⏱ <span id="timerVal">--</span></div>
+        </div>
+
+        <div class="question-card">
+          <div class="question" id="questionTxt">Chưa có câu hỏi</div>
+          <div id="answerBox" class="answer-box">_</div>
+          <div class="numpad" id="numpadRow" aria-hidden="false"></div>
+          <div class="center"><div id="msgArea" class="message" style="display:none"></div></div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:center;justify-content:center">
+          <button id="leaveBtn" class="btn secondary">Rời phòng</button>
+          <div class="small" style="color:var(--muted)">Chạm bất kỳ vị trí sau khi nhả ngón là auto-focus vào ô nhập.</div>
+        </div>
+      </div>
+
+      <div class="map-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-weight:700">Người chơi</div>
+          <div id="roomCodeView" class="small">Mã: ----</div>
+        </div>
+        <div class="players-list" id="playersList"></div>
+        <hr />
+        <div style="font-weight:700;margin-bottom:8px">Bản đồ lãnh thổ</div>
+        <div class="map-grid" id="mapGrid"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEACHER VIEW -->
+  <div id="screenTeacher" class="card hidden teacher-view">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div><b>Giáo viên — Mã phòng: </b><span id="teacherRoomCode">----</span></div>
+      <div style="display:flex;gap:8px">
+        <button id="forceNewQBtn" class="btn">Tạo câu mới</button>
+        <button id="endBtn" class="btn secondary">Kết thúc</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1">
+        <div style="font-weight:700;margin-bottom:8px">Câu hỏi hiện tại</div>
+        <div class="card" style="padding:16px">
+          <div id="teacherQuestionTxt" style="font-size:26px;font-weight:800">—</div>
+          <div style="margin-top:8px" class="small">Đáp án: <span id="teacherAnswer">—</span></div>
+        </div>
+      </div>
+      <div style="width:320px">
+        <div style="font-weight:700;margin-bottom:8px">Danh sách người chơi</div>
+        <div id="teacherPlayers" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <div style="font-weight:700;margin-bottom:8px">Bản đồ lãnh thổ (chiếu)</div>
+      <div class="map-grid" id="teacherMap"></div>
+    </div>
+  </div>
+
+</div></div>
+
+<!-- Firebase modular SDK v12 -->
+<script type="module">
+/* ====== Firebase imports (modular) ====== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update, remove, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+/* ====== Firebase config (mình chèn config bạn đã cung cấp) ====== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCQokXWMnoLfa0zuWhJgf07bfTw5VM-ra4",
+  authDomain: "mathbattle-app.firebaseapp.com",
+  databaseURL: "https://mathbattle-app-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "mathbattle-app",
+  storageBucket: "mathbattle-app.firebasestorage.app",
+  messagingSenderId: "1033142517588",
+  appId: "1:1033142517588:web:f6af9a42ae05d81f2452c1",
+  measurementId: "G-3VGDNGBZQT"
+};
+/* ======================================= */
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+/* ====== UI refs ====== */
+const screenLobby = document.getElementById('screenLobby');
+const screenGame = document.getElementById('screenGame');
+const screenTeacher = document.getElementById('screenTeacher');
+
+const playerNameInput = document.getElementById('playerName');
+const createBtn = document.getElementById('createBtn');
+const joinBtn = document.getElementById('joinBtn');
+const joinCodeInput = document.getElementById('joinCode');
+const modesEl = document.getElementById('modes');
+
+const roomInfoDisplay = document.getElementById('roomInfoDisplay');
+const roomCodeView = document.getElementById('roomCodeView');
+
+const questionTxt = document.getElementById('questionTxt');
+const answerBox = document.getElementById('answerBox');
+const numpadRow = document.getElementById('numpadRow');
+const msgArea = document.getElementById('msgArea');
+const scoreStat = document.getElementById('scoreStat');
+const bombStat = document.getElementById('bombStat');
+const nukeStat = document.getElementById('nukeStat');
+const playersList = document.getElementById('playersList');
+const mapGrid = document.getElementById('mapGrid');
+
+const teacherRoomCode = document.getElementById('teacherRoomCode');
+const teacherQuestionTxt = document.getElementById('teacherQuestionTxt');
+const teacherAnswer = document.getElementById('teacherAnswer');
+const teacherPlayers = document.getElementById('teacherPlayers');
+const teacherMap = document.getElementById('teacherMap');
+const forceNewQBtn = document.getElementById('forceNewQBtn');
+const endBtn = document.getElementById('endBtn');
+
+const leaveBtn = document.getElementById('leaveBtn');
+
+/* ====== App state ====== */
+let local = { name:'', role:null, roomId:null, playerId:null };
+let listeners = [];
+
+/* ====== Helpers ====== */
+function genRoomCode(){ return Math.floor(Math.random()*10000).toString().padStart(4,'0'); }
+function sanitizeName(n){ return n.trim().replace(/[^a-zA-Z0-9_ \-]/g,'').slice(0,20) }
+function showScreen(screen){ screenLobby.classList.add('hidden'); screenGame.classList.add('hidden'); screenTeacher.classList.add('hidden'); screen.classList.remove('hidden'); }
+function showMsg(text,d=1100){ msgArea.style.display='block'; msgArea.innerText=text; setTimeout(()=> msgArea.style.display='none', d); }
+
+/* ====== Numpad ====== */
+function buildNumpad(){
+  numpadRow.innerHTML='';
+  for(let i=0;i<=9;i++){
+    const k=document.createElement('div'); k.className='key'; k.innerText=String(i); k.dataset.key=i; k.addEventListener('pointerdown', onKeyDown);
+    numpadRow.appendChild(k);
+  }
+  const back=document.createElement('div'); back.className='key'; back.innerText='←'; back.dataset.key='back'; back.addEventListener('pointerdown', onKeyDown);
+  numpadRow.appendChild(back);
+}
+buildNumpad();
+document.addEventListener('pointerup', ()=> { answerBox.style.boxShadow='0 6px 18px rgba(18,115,230,0.06)'; setTimeout(()=> answerBox.style.boxShadow='',160); });
+
+/* ====== Input & auto-check ====== */
+let currentInput='';
+function setAnswerText(t){ answerBox.innerText = t || '_'; }
+setAnswerText('');
+async function onKeyDown(e){
+  const k = e.currentTarget.dataset.key;
+  if(k==='back'){ currentInput = currentInput.slice(0,-1); setAnswerText(currentInput); return; }
+  if(currentInput.length >= 6) return;
+  currentInput += k; setAnswerText(currentInput);
+  await autoCheckInput();
+}
+
+/* auto-check: compares input against currentQuestion.answer in DB */
+async function autoCheckInput(){
+  if(!local.roomId || !local.playerId) return;
+  const qSnap = await get(ref(db, `rooms/${local.roomId}/currentQuestion`));
+  if(!qSnap.exists()) return;
+  const q = qSnap.val(); if(q.solved) return;
+  const correct = String(q.answer);
+  if(currentInput === correct){
+    // try to claim atomically
+    const qRef = ref(db, `rooms/${local.roomId}/currentQuestion`);
+    await runTransaction(qRef, (cur)=>{
+      if(!cur) return cur;
+      if(cur.solved) return;
+      cur.solved = { by: local.playerId, at: Date.now() };
+      return cur;
+    }).then(async (res)=>{
+      if(!res.committed) return;
+      // get player hadWrong flag
+      const pSnap = await get(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
+      const p = pSnap.val() || {};
+      const hadWrong = p.hadWrongThisRound || false;
+      if(hadWrong){
+        showMsg('Đúng — nhưng đã sai trước đó nên không cộng điểm',1400);
+        // record lastSolved (no reward)
+        await update(ref(db, `rooms/${local.roomId}`), { lastSolvedBy: local.playerId, solvedHadWrong: true });
+      } else {
+        showMsg('Chính xác! +1 điểm',900);
+        await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/score`), s => (s||0)+1 );
+        await assignTerritory(local.playerId);
+        await update(ref(db, `rooms/${local.roomId}`), { lastSolvedBy: local.playerId, solvedHadWrong: false });
+      }
+      // generate new question and reset per-player hadWrongThisRound flags
+      setTimeout(async ()=>{
+        await createAndSetQuestion(local.roomId);
+      }, 600);
+      currentInput=''; setAnswerText('');
+    }).catch(err=>console.error(err));
+  } else {
+    if(currentInput.length >= String(q.answer).length && currentInput !== String(q.answer)){
+      // wrong attempt
+      showMsg('Sai — trừ 1 điểm và mất 1 ô',1200);
+      await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/score`), s => (s||0)-1 );
+      await removeTerritory(local.playerId);
+      // mark hadWrongThisRound for this player
+      await update(ref(db, `rooms/${local.roomId}/players/${local.playerId}`), { hadWrongThisRound: true });
+      currentInput=''; setAnswerText('');
+    }
+  }
+}
+
+/* ====== Territory helpers ====== */
+async function initMapIfNeeded(roomId){
+  const mapSnap = await get(ref(db, `rooms/${roomId}/map`));
+  if(!mapSnap.exists()){
+    const cells = Array.from({length:24}).map(()=>({owner:null}));
+    await set(ref(db, `rooms/${roomId}/map`), cells);
+  }
+}
+async function assignTerritory(pid){
+  const mapRef = ref(db, `rooms/${local.roomId}/map`);
+  const snap = await get(mapRef);
+  if(!snap.exists()) return;
+  const cells = snap.val();
+  for(let i=0;i<cells.length;i++){
+    if(!cells[i].owner){
+      const upd={}; upd[`rooms/${local.roomId}/map/${i}/owner`] = pid;
+      await update(ref(db), upd);
+      return;
+    }
+  }
+}
+async function removeTerritory(pid){
+  const mapRef = ref(db, `rooms/${local.roomId}/map`);
+  const snap = await get(mapRef);
+  if(!snap.exists()) return;
+  const cells = snap.val();
+  for(let i=cells.length-1;i>=0;i--){
+    if(cells[i].owner === pid){
+      await update(ref(db, `rooms/${local.roomId}/map/${i}`), { owner: null });
+      return;
+    }
+  }
+}
+
+/* ====== Question generator & setter ====== */
+function makeRandomQuestion(){
+  const ops = ['+','-','×','÷'];
+  const op = ops[Math.floor(Math.random()*ops.length)];
+  let a,b,ans,txt;
+  if(op==='÷'){ // ensure integer division
+    b = Math.floor(Math.random()*8)+2;
+    ans = Math.floor(Math.random()*12)+1;
+    a = b * ans;
+    txt = `${a} ÷ ${b} = ?`;
+  } else {
+    a = Math.floor(Math.random()*15)+1;
+    b = Math.floor(Math.random()*12)+1;
+    if(op==='+' ){ ans = a+b; txt = `${a} + ${b} = ?`; }
+    if(op==='-'){ ans = a-b; txt = `${a} - ${b} = ?`; }
+    if(op==='×'){ ans = a*b; txt = `${a} × ${b} = ?`; }
+  }
+  return { text: txt, answer: ans };
+}
+
+async function createAndSetQuestion(roomId){
+  const q = makeRandomQuestion();
+  // reset players' hadWrongThisRound flags
+  const playersSnap = await get(ref(db, `rooms/${roomId}/players`));
+  const updates = {};
+  if(playersSnap.exists()){
+    const players = playersSnap.val();
+    Object.keys(players).forEach(pid => {
+      updates[`rooms/${roomId}/players/${pid}/hadWrongThisRound`] = false;
+    });
+  }
+  // set question + reset flags in a single update
+  updates[`rooms/${roomId}/currentQuestion`] = { text:q.text, answer:q.answer, createdAt:Date.now(), solved:null };
+  updates[`rooms/${roomId}/questionTimestamp`] = Date.now();
+  await update(ref(db), updates);
+}
+
+/* ====== Create / Join room ====== */
+modesEl.addEventListener('click', (ev)=>{
+  const el = ev.target.closest('.mode'); if(!el) return;
+  Array.from(modesEl.children).forEach(c=>c.classList.remove('selected')); el.classList.add('selected');
+});
+
+createBtn.addEventListener('click', async ()=>{
+  const name = sanitizeName(playerNameInput.value || 'Người chơi');
+  if(!name) return alert('Nhập tên hợp lệ');
+  const mode = document.querySelector('.mode.selected').dataset.mode;
+  const code = genRoomCode();
+  const rRef = ref(db, `rooms/${code}`);
+  const snap = await get(rRef);
+  if(snap.exists()){ alert('Trùng mã, thử lại'); return; }
+  // init room
+  await set(rRef, { mode, teacherName: name, createdAt: Date.now() });
+  // join as teacher (creator)
+  await joinRoomAs(code, name, 'teacher');
+  // create first auto question
+  await initMapIfNeeded(code);
+  await createAndSetQuestion(code);
+});
+
+joinBtn.addEventListener('click', async ()=>{
+  const name = sanitizeName(playerNameInput.value || 'Người chơi');
+  if(!name) return alert('Nhập tên hợp lệ');
+  const code = (joinCodeInput.value || '').padStart(4,'0');
+  if(!/^\d{4}$/.test(code)) return alert('Nhập mã phòng 4 chữ số');
+  const rSnap = await get(ref(db, `rooms/${code}`));
+  if(!rSnap.exists()) return alert('Phòng không tồn tại');
+  await joinRoomAs(code, name, 'student');
+});
+
+async function joinRoomAs(code,name,role){
+  const pid = 'p_' + Math.random().toString(36).slice(2,9);
+  local.name = name; local.role = (role==='teacher'?'teacher':'student'); local.playerId = pid; local.roomId = code;
+  // duplicate name check
+  const playersSnap = await get(ref(db, `rooms/${code}/players`));
+  if(playersSnap.exists()){
+    const list = playersSnap.val();
+    const dup = Object.values(list).some(pl => pl.name === name);
+    if(dup){ alert('Tên đã có trong phòng, đổi tên'); return; }
+  }
+  // create player entry
+  const playerObj = { id: pid, name, score: 0, bombs: 0, nukes: 0, hadWrongThisRound: false, joinedAt: Date.now() };
+  await update(ref(db, `rooms/${code}/players/${pid}`), playerObj);
+  // set teacherId if creator
+  if(role==='teacher') await update(ref(db, `rooms/${code}`), { teacherId: pid, teacherName: name });
+  // onDisconnect removal
+  try { onDisconnect(ref(db, `rooms/${code}/players/${pid}`)).remove(); } catch(e){ /* ignore */ }
+  // init map
+  await initMapIfNeeded(code);
+  // setup listeners
+  setupRoomListeners(code);
+  // show screen
+  if(local.role === 'teacher'){ showScreen(screenTeacher); teacherRoomCode.innerText = code; } else { showScreen(screenGame); }
+  roomInfoDisplay.innerText = `Phòng ${code} · ${local.role}`; roomCodeView.innerText = `Mã: ${code}`;
+}
+
+/* leave */
+leaveBtn.addEventListener('click', async ()=>{
+  if(!local.roomId || !local.playerId) return;
+  await remove(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
+  cleanup();
+  showScreen(screenLobby);
+});
+
+/* Teacher force new question */
+forceNewQBtn.addEventListener('click', async ()=>{
+  if(!local.roomId) return;
+  await createAndSetQuestion(local.roomId);
+});
+
+/* end room */
+endBtn.addEventListener('click', async ()=>{
+  if(!confirm('Kết thúc phòng — sẽ xóa dữ liệu?')) return;
+  if(!local.roomId) return;
+  await remove(ref(db, `rooms/${local.roomId}`));
+  cleanup(); showScreen(screenLobby);
+});
+
+/* Bomb click (HUD) */
+bombStat.addEventListener('click', async ()=>{
+  if(!local.roomId || !local.playerId) return;
+  const pSnap = await get(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
+  const p = pSnap.val() || {};
+  if((p.bombs || 0) <= 0){ showMsg('Hết bom',900); return; }
+  const mapSnap = await get(ref(db, `rooms/${local.roomId}/map`));
+  if(!mapSnap.exists()){ showMsg('Không có ô để thả bom',900); return; }
+  const cells = mapSnap.val();
+  const targetIdx = cells.findIndex(c => c.owner && c.owner !== local.playerId);
+  if(targetIdx === -1){ showMsg('Không tìm thấy ô của đối thủ',900); return; }
+  await update(ref(db, `rooms/${local.roomId}/map/${targetIdx}`), { owner: null });
+  await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/bombs`), b => (b||0)-1 );
+  showMsg('Bom nổ!',900);
+});
+
+/* ====== Realtime listeners & render ====== */
+function setupRoomListeners(code){
+  // remove previous listeners if any
+  listeners.forEach(fn => fn && fn()); listeners = [];
+  // players
+  const playersPath = ref(db, `rooms/${code}/players`);
+  const playersUnsub = onValue(playersPath, (snap)=>{
+    const data = snap.val() || {};
+    renderPlayers(Object.values(data));
+  });
+  listeners.push(()=> playersPath.off && playersPath.off());
+  // room (map + question)
+  const rRef = ref(db, `rooms/${code}`);
+  const roomUnsub = onValue(rRef, async (snap)=>{
+    const data = snap.val() || {};
+    // map
+    const mapSnap = await get(ref(db, `rooms/${code}/map`));
+    const mapArr = mapSnap.exists() ? mapSnap.val() : Array.from({length:24}).map(()=>({owner:null}));
+    renderMap(mapArr);
+    // currentQuestion
+    const qSnap = await get(ref(db, `rooms/${code}/currentQuestion`));
+    if(qSnap.exists()){
+      const q = qSnap.val();
+      teacherQuestionTxt.innerText = q.text || '—';
+      teacherAnswer.innerText = q.answer ?? '—';
+      questionTxt.innerText = q.text || '—';
+    } else {
+      teacherQuestionTxt.innerText='—'; teacherAnswer.innerText='—'; questionTxt.innerText='Chưa có câu hỏi';
+    }
+  });
+  listeners.push(()=> rRef.off && rRef.off());
+}
+
+/* render players */
+function renderPlayers(players){
+  players.sort((a,b)=> (b.score||0)-(a.score||0));
+  playersList.innerHTML=''; teacherPlayers.innerHTML='';
+  for(const p of players){
+    const div = document.createElement('div'); div.className='player-item';
+    div.innerHTML = `<div>${p.name}</div><div>${p.score||0} đ</div>`;
+    playersList.appendChild(div);
+    const tdiv = div.cloneNode(true); teacherPlayers.appendChild(tdiv);
+    if(p.id === local.playerId){
+      scoreStat.innerText = `Điểm: ${p.score||0}`;
+      bombStat.innerText = `Bom: ${p.bombs||0}`; nukeStat.innerText = `Nuke: ${p.nukes||0}`;
+    }
+  }
+}
+
+/* render map */
+function renderMap(mapArr){
+  mapGrid.innerHTML=''; teacherMap.innerHTML='';
+  mapArr.forEach((cell, idx)=>{
+    const el = document.createElement('div'); el.className='cell';
+    if(cell.owner){ el.style.background='#dff3ff'; el.innerText = cell.owner.slice(0,3); } else el.innerText='';
+    mapGrid.appendChild(el);
+    const el2 = el.cloneNode(true); teacherMap.appendChild(el2);
+  });
+}
+
+/* cleanup */
+function cleanup(){
+  listeners.forEach(fn=>fn && fn()); listeners=[];
+  local = { name:'', role:null, roomId:null, playerId:null };
+  roomInfoDisplay.innerText = 'Offline';
+  scoreStat.innerText='Điểm: 0'; bombStat.innerText='Bom: 0'; nukeStat.innerText='Nuke: 0';
+}
+
+/* start */
+showScreen(screenLobby);
+console.log('MathBattle full online loaded. Run over HTTP(S).');
+</script>
+</body>
+</html>
