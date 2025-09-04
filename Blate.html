@@ -3,12 +3,12 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>MathBattle — Full Online</title>
+<title>MathBattle — Final Online</title>
 <style>
 :root{--bg:#F6F8FA;--card:#fff;--primary:#1273E6;--danger:#E03E3E;--muted:#6b7280}
 html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:var(--bg);-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
 .app{width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;}
-.stage{width:100%;max-width:980px;height:100%;box-sizing:border-box;padding:16px;display:grid;grid-template-rows:auto 1fr;gap:12px;}
+.stage{width:100%;max-width:1000px;height:100%;box-sizing:border-box;padding:16px;display:grid;grid-template-rows:auto 1fr;gap:12px;}
 .card{background:var(--card);border-radius:12px;box-shadow:0 6px 20px rgba(20,20,40,0.06);padding:12px;box-sizing:border-box;}
 .header{display:flex;align-items:center;justify-content:space-between;gap:12px;}
 .logo{font-weight:700;color:var(--primary);font-size:18px}
@@ -23,11 +23,11 @@ input[type="text"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9e
 .mode{padding:8px 12px;border-radius:8px;border:1px dashed #e6e9ef;cursor:pointer}
 .mode.selected{border-style:solid;background:#eef6ff;border-color:rgba(18,115,230,0.18)}
 /* Game */
-.game-grid{display:grid;grid-template-columns:1fr 320px;gap:12px;height:100%}
+.game-grid{display:grid;grid-template-columns:1fr 360px;gap:12px;height:100%}
 .play-area{display:flex;flex-direction:column;gap:12px;height:100%}
 .hud{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .hud-left{display:flex;gap:8px;align-items:center}
-.stat{background:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(10,10,20,0.03);font-weight:700;cursor:pointer}
+.stat{background:#fff;padding:8px 10px;border-radius:10px;box-shadow:0 2px 8px rgba(10,10,20,0.03);font-weight:700;cursor:pointer;user-select:none}
 .timer{font-weight:700;color:#111}
 .question-card{flex:1;background:linear-gradient(180deg,#fff,#fbfdff);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:12px;justify-content:center;align-items:center;text-align:center}
 .question{font-size:28px;font-weight:800}
@@ -43,19 +43,23 @@ input[type="text"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9e
 .message{padding:10px;border-radius:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.03);font-weight:600}
 .map-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
 .cell{height:40px;border-radius:6px;background:#f3f6fb;border:1px solid #e6eefc;display:flex;align-items:center;justify-content:center;font-weight:700}
-@media (max-width:900px){ .game-grid{grid-template-columns:1fr} .map-card{height:240px} .stage{padding:12px} }
+.flash-correct{animation:flashCorrect 0.5s}
+.flash-wrong{animation:flashWrong 0.5s}
+@keyframes flashCorrect{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+@keyframes flashWrong{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}100%{transform:translateX(0)}}
+@media (max-width:1000px){ .game-grid{grid-template-columns:1fr} .map-card{height:220px} .stage{padding:12px} }
 </style>
 </head>
 <body>
 <div class="app"><div class="stage">
   <div class="header card">
-    <div style="display:flex;align-items:center;gap:12px"><div class="logo">MathBattle</div><div class="small">Online — Tự sinh câu</div></div>
+    <div style="display:flex;align-items:center;gap:12px"><div class="logo">MathBattle</div><div class="small">Hoàn chỉnh — Online</div></div>
     <div class="small" id="roomInfoDisplay">Offline</div>
   </div>
 
   <!-- LOBBY -->
   <div id="screenLobby" class="card lobby">
-    <div style="width:100%;max-width:560px">
+    <div style="width:100%;max-width:640px">
       <div style="margin-bottom:8px;font-weight:700">Nhập tên người chơi</div>
       <div class="field">
         <input id="playerName" type="text" placeholder="Tên của bạn" maxlength="20" />
@@ -139,7 +143,7 @@ input[type="text"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9e
           <div style="margin-top:8px" class="small">Đáp án: <span id="teacherAnswer">—</span></div>
         </div>
       </div>
-      <div style="width:320px">
+      <div style="width:360px">
         <div style="font-weight:700;margin-bottom:8px">Danh sách người chơi</div>
         <div id="teacherPlayers" style="display:flex;flex-direction:column;gap:8px"></div>
       </div>
@@ -155,11 +159,11 @@ input[type="text"]{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9e
 
 <!-- Firebase modular SDK v12 -->
 <script type="module">
-/* ====== Firebase imports (modular) ====== */
+/* ========== Firebase imports ========== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
 import { getDatabase, ref, set, get, onValue, update, remove, onDisconnect, runTransaction } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
 
-/* ====== Firebase config (mình chèn config bạn đã cung cấp) ====== */
+/* ========== Firebase config (tôi đã chèn config bạn cung cấp) ========== */
 const firebaseConfig = {
   apiKey: "AIzaSyCQokXWMnoLfa0zuWhJgf07bfTw5VM-ra4",
   authDomain: "mathbattle-app.firebaseapp.com",
@@ -170,12 +174,19 @@ const firebaseConfig = {
   appId: "1:1033142517588:web:f6af9a42ae05d81f2452c1",
   measurementId: "G-3VGDNGBZQT"
 };
-/* ======================================= */
+/* ================================================ */
 
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-/* ====== UI refs ====== */
+/* ========== Small base64 audio (short beeps) ========== */
+/* You can replace with longer base64 mp3 if you prefer */
+const audioCorrect = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=');
+const audioWrong = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=');
+const audioBomb = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=');
+const audioNuke = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YQAAAAA=');
+
+/* ========== UI refs ========== */
 const screenLobby = document.getElementById('screenLobby');
 const screenGame = document.getElementById('screenGame');
 const screenTeacher = document.getElementById('screenTeacher');
@@ -209,17 +220,31 @@ const endBtn = document.getElementById('endBtn');
 
 const leaveBtn = document.getElementById('leaveBtn');
 
-/* ====== App state ====== */
+/* ========== App state ========== */
 let local = { name:'', role:null, roomId:null, playerId:null };
 let listeners = [];
 
-/* ====== Helpers ====== */
+/* ========== Helpers ========== */
 function genRoomCode(){ return Math.floor(Math.random()*10000).toString().padStart(4,'0'); }
 function sanitizeName(n){ return n.trim().replace(/[^a-zA-Z0-9_ \-]/g,'').slice(0,20) }
 function showScreen(screen){ screenLobby.classList.add('hidden'); screenGame.classList.add('hidden'); screenTeacher.classList.add('hidden'); screen.classList.remove('hidden'); }
 function showMsg(text,d=1100){ msgArea.style.display='block'; msgArea.innerText=text; setTimeout(()=> msgArea.style.display='none', d); }
 
-/* ====== Numpad ====== */
+/* ========== Limits per mode ==========
+  1v1 -> 2 players
+  solo3 -> 3 players
+  solo4 -> 4 players
+  2v2 -> 4 players (teams)
+*/
+function modeLimit(mode){
+  if(mode==='1v1') return 2;
+  if(mode==='solo3') return 3;
+  if(mode==='solo4') return 4;
+  if(mode==='2v2') return 4;
+  return 4;
+}
+
+/* ========== Numpad UI ========== */
 function buildNumpad(){
   numpadRow.innerHTML='';
   for(let i=0;i<=9;i++){
@@ -232,7 +257,7 @@ function buildNumpad(){
 buildNumpad();
 document.addEventListener('pointerup', ()=> { answerBox.style.boxShadow='0 6px 18px rgba(18,115,230,0.06)'; setTimeout(()=> answerBox.style.boxShadow='',160); });
 
-/* ====== Input & auto-check ====== */
+/* ========== Input & auto-check ========== */
 let currentInput='';
 function setAnswerText(t){ answerBox.innerText = t || '_'; }
 setAnswerText('');
@@ -261,40 +286,46 @@ async function autoCheckInput(){
       return cur;
     }).then(async (res)=>{
       if(!res.committed) return;
-      // get player hadWrong flag
+      // check whether this player had wrong this round
       const pSnap = await get(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
       const p = pSnap.val() || {};
       const hadWrong = p.hadWrongThisRound || false;
       if(hadWrong){
+        // no reward
+        audioCorrect.play().catch(()=>{});
         showMsg('Đúng — nhưng đã sai trước đó nên không cộng điểm',1400);
-        // record lastSolved (no reward)
         await update(ref(db, `rooms/${local.roomId}`), { lastSolvedBy: local.playerId, solvedHadWrong: true });
       } else {
+        // reward
+        audioCorrect.play().catch(()=>{});
         showMsg('Chính xác! +1 điểm',900);
         await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/score`), s => (s||0)+1 );
         await assignTerritory(local.playerId);
         await update(ref(db, `rooms/${local.roomId}`), { lastSolvedBy: local.playerId, solvedHadWrong: false });
       }
-      // generate new question and reset per-player hadWrongThisRound flags
-      setTimeout(async ()=>{
+      // create next question
+      setTimeout(async ()=> {
         await createAndSetQuestion(local.roomId);
       }, 600);
       currentInput=''; setAnswerText('');
+      // animate correct
+      answerBox.classList.add('flash-correct'); setTimeout(()=> answerBox.classList.remove('flash-correct'), 600);
     }).catch(err=>console.error(err));
   } else {
     if(currentInput.length >= String(q.answer).length && currentInput !== String(q.answer)){
       // wrong attempt
+      audioWrong.play().catch(()=>{});
       showMsg('Sai — trừ 1 điểm và mất 1 ô',1200);
       await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/score`), s => (s||0)-1 );
       await removeTerritory(local.playerId);
-      // mark hadWrongThisRound for this player
       await update(ref(db, `rooms/${local.roomId}/players/${local.playerId}`), { hadWrongThisRound: true });
       currentInput=''; setAnswerText('');
+      answerBox.classList.add('flash-wrong'); setTimeout(()=> answerBox.classList.remove('flash-wrong'), 600);
     }
   }
 }
 
-/* ====== Territory helpers ====== */
+/* ========== Territory helpers (map 6x4 = 24 cells) ========== */
 async function initMapIfNeeded(roomId){
   const mapSnap = await get(ref(db, `rooms/${roomId}/map`));
   if(!mapSnap.exists()){
@@ -328,12 +359,14 @@ async function removeTerritory(pid){
   }
 }
 
-/* ====== Question generator & setter ====== */
+/* ========== Question generator & setter ==========
+   - supports +, -, ×, ÷ (integer)
+*/
 function makeRandomQuestion(){
   const ops = ['+','-','×','÷'];
   const op = ops[Math.floor(Math.random()*ops.length)];
   let a,b,ans,txt;
-  if(op==='÷'){ // ensure integer division
+  if(op==='÷'){
     b = Math.floor(Math.random()*8)+2;
     ans = Math.floor(Math.random()*12)+1;
     a = b * ans;
@@ -341,16 +374,15 @@ function makeRandomQuestion(){
   } else {
     a = Math.floor(Math.random()*15)+1;
     b = Math.floor(Math.random()*12)+1;
-    if(op==='+' ){ ans = a+b; txt = `${a} + ${b} = ?`; }
+    if(op==='+'){ ans = a+b; txt = `${a} + ${b} = ?`; }
     if(op==='-'){ ans = a-b; txt = `${a} - ${b} = ?`; }
     if(op==='×'){ ans = a*b; txt = `${a} × ${b} = ?`; }
   }
   return { text: txt, answer: ans };
 }
-
 async function createAndSetQuestion(roomId){
   const q = makeRandomQuestion();
-  // reset players' hadWrongThisRound flags
+  // reset per-player hadWrongThisRound flag
   const playersSnap = await get(ref(db, `rooms/${roomId}/players`));
   const updates = {};
   if(playersSnap.exists()){
@@ -359,13 +391,12 @@ async function createAndSetQuestion(roomId){
       updates[`rooms/${roomId}/players/${pid}/hadWrongThisRound`] = false;
     });
   }
-  // set question + reset flags in a single update
   updates[`rooms/${roomId}/currentQuestion`] = { text:q.text, answer:q.answer, createdAt:Date.now(), solved:null };
   updates[`rooms/${roomId}/questionTimestamp`] = Date.now();
   await update(ref(db), updates);
 }
 
-/* ====== Create / Join room ====== */
+/* ========== Create / Join room logic ========== */
 modesEl.addEventListener('click', (ev)=>{
   const el = ev.target.closest('.mode'); if(!el) return;
   Array.from(modesEl.children).forEach(c=>c.classList.remove('selected')); el.classList.add('selected');
@@ -379,11 +410,8 @@ createBtn.addEventListener('click', async ()=>{
   const rRef = ref(db, `rooms/${code}`);
   const snap = await get(rRef);
   if(snap.exists()){ alert('Trùng mã, thử lại'); return; }
-  // init room
   await set(rRef, { mode, teacherName: name, createdAt: Date.now() });
-  // join as teacher (creator)
   await joinRoomAs(code, name, 'teacher');
-  // create first auto question
   await initMapIfNeeded(code);
   await createAndSetQuestion(code);
 });
@@ -395,6 +423,11 @@ joinBtn.addEventListener('click', async ()=>{
   if(!/^\d{4}$/.test(code)) return alert('Nhập mã phòng 4 chữ số');
   const rSnap = await get(ref(db, `rooms/${code}`));
   if(!rSnap.exists()) return alert('Phòng không tồn tại');
+  // check mode limit
+  const room = rSnap.val();
+  const playersSnap = await get(ref(db, `rooms/${code}/players`));
+  const count = playersSnap.exists() ? Object.keys(playersSnap.val()).length : 0;
+  if(count >= modeLimit(room.mode)) return alert(`Phòng đã đầy cho chế độ ${room.mode}`);
   await joinRoomAs(code, name, 'student');
 });
 
@@ -411,15 +444,10 @@ async function joinRoomAs(code,name,role){
   // create player entry
   const playerObj = { id: pid, name, score: 0, bombs: 0, nukes: 0, hadWrongThisRound: false, joinedAt: Date.now() };
   await update(ref(db, `rooms/${code}/players/${pid}`), playerObj);
-  // set teacherId if creator
   if(role==='teacher') await update(ref(db, `rooms/${code}`), { teacherId: pid, teacherName: name });
-  // onDisconnect removal
-  try { onDisconnect(ref(db, `rooms/${code}/players/${pid}`)).remove(); } catch(e){ /* ignore */ }
-  // init map
+  try { onDisconnect(ref(db, `rooms/${code}/players/${pid}`)).remove(); } catch(e){}
   await initMapIfNeeded(code);
-  // setup listeners
   setupRoomListeners(code);
-  // show screen
   if(local.role === 'teacher'){ showScreen(screenTeacher); teacherRoomCode.innerText = code; } else { showScreen(screenGame); }
   roomInfoDisplay.innerText = `Phòng ${code} · ${local.role}`; roomCodeView.innerText = `Mã: ${code}`;
 }
@@ -432,7 +460,7 @@ leaveBtn.addEventListener('click', async ()=>{
   showScreen(screenLobby);
 });
 
-/* Teacher force new question */
+/* teacher: force new question */
 forceNewQBtn.addEventListener('click', async ()=>{
   if(!local.roomId) return;
   await createAndSetQuestion(local.roomId);
@@ -446,7 +474,7 @@ endBtn.addEventListener('click', async ()=>{
   cleanup(); showScreen(screenLobby);
 });
 
-/* Bomb click (HUD) */
+/* bomb stat click -> drop bomb */
 bombStat.addEventListener('click', async ()=>{
   if(!local.roomId || !local.playerId) return;
   const pSnap = await get(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
@@ -457,27 +485,51 @@ bombStat.addEventListener('click', async ()=>{
   const cells = mapSnap.val();
   const targetIdx = cells.findIndex(c => c.owner && c.owner !== local.playerId);
   if(targetIdx === -1){ showMsg('Không tìm thấy ô của đối thủ',900); return; }
+  // remove owner
   await update(ref(db, `rooms/${local.roomId}/map/${targetIdx}`), { owner: null });
   await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/bombs`), b => (b||0)-1 );
+  audioBomb.play().catch(()=>{});
   showMsg('Bom nổ!',900);
 });
 
-/* ====== Realtime listeners & render ====== */
+/* nuke stat click -> clear up to 4 enemy cells */
+nukeStat.addEventListener('click', async ()=>{
+  if(!local.roomId || !local.playerId) return;
+  const pSnap = await get(ref(db, `rooms/${local.roomId}/players/${local.playerId}`));
+  const p = pSnap.val() || {};
+  if((p.nukes || 0) <= 0){ showMsg('Hết nuke',900); return; }
+  const mapSnap = await get(ref(db, `rooms/${local.roomId}/map`));
+  if(!mapSnap.exists()){ showMsg('Không có ô để thả nuke',900); return; }
+  const cells = mapSnap.val();
+  // remove up to 4 enemy cells
+  let removed=0;
+  for(let i=0;i<cells.length && removed<4;i++){
+    if(cells[i].owner && cells[i].owner !== local.playerId){
+      await update(ref(db, `rooms/${local.roomId}/map/${i}`), { owner: null });
+      removed++;
+    }
+  }
+  await runTransaction(ref(db, `rooms/${local.roomId}/players/${local.playerId}/nukes`), n => (n||0)-1 );
+  audioNuke.play().catch(()=>{});
+  showMsg(`Nuke! Xóa ${removed} ô`,1000);
+});
+
+/* ========== Realtime listeners & rendering ========== */
 function setupRoomListeners(code){
-  // remove previous listeners if any
-  listeners.forEach(fn => fn && fn()); listeners = [];
-  // players
+  // clear previous
+  listeners.forEach(fn=>fn && fn()); listeners = [];
+  // players list
   const playersPath = ref(db, `rooms/${code}/players`);
-  const playersUnsub = onValue(playersPath, (snap)=>{
+  const unsubPlayers = onValue(playersPath, (snap)=>{
     const data = snap.val() || {};
     renderPlayers(Object.values(data));
   });
   listeners.push(()=> playersPath.off && playersPath.off());
-  // room (map + question)
+  // room (question + map)
   const rRef = ref(db, `rooms/${code}`);
-  const roomUnsub = onValue(rRef, async (snap)=>{
+  const unsubRoom = onValue(rRef, async (snap)=>{
     const data = snap.val() || {};
-    // map
+    // map render
     const mapSnap = await get(ref(db, `rooms/${code}/map`));
     const mapArr = mapSnap.exists() ? mapSnap.val() : Array.from({length:24}).map(()=>({owner:null}));
     renderMap(mapArr);
@@ -495,7 +547,7 @@ function setupRoomListeners(code){
   listeners.push(()=> rRef.off && rRef.off());
 }
 
-/* render players */
+/* render players (both sides) */
 function renderPlayers(players){
   players.sort((a,b)=> (b.score||0)-(a.score||0));
   playersList.innerHTML=''; teacherPlayers.innerHTML='';
@@ -514,7 +566,7 @@ function renderPlayers(players){
 /* render map */
 function renderMap(mapArr){
   mapGrid.innerHTML=''; teacherMap.innerHTML='';
-  mapArr.forEach((cell, idx)=>{
+  mapArr.forEach((cell,idx)=>{
     const el = document.createElement('div'); el.className='cell';
     if(cell.owner){ el.style.background='#dff3ff'; el.innerText = cell.owner.slice(0,3); } else el.innerText='';
     mapGrid.appendChild(el);
@@ -522,17 +574,18 @@ function renderMap(mapArr){
   });
 }
 
-/* cleanup */
+/* cleanup local state */
 function cleanup(){
-  listeners.forEach(fn=>fn && fn()); listeners=[];
+  listeners.forEach(fn=>fn && fn()); listeners = [];
   local = { name:'', role:null, roomId:null, playerId:null };
   roomInfoDisplay.innerText = 'Offline';
   scoreStat.innerText='Điểm: 0'; bombStat.innerText='Bom: 0'; nukeStat.innerText='Nuke: 0';
 }
 
-/* start */
+/* start on lobby */
 showScreen(screenLobby);
-console.log('MathBattle full online loaded. Run over HTTP(S).');
+console.log('MathBattle final online loaded. Run over HTTP(S).');
+
 </script>
 </body>
 </html>
